@@ -1,5 +1,5 @@
 <template>
-	<a :id="'tool-' + name" class="tool" v-html="icons[name]" @click="$emit('click')">name</a>
+	<a :id="'tool-' + name" class="hideRectangleTool tool" v-html="icons[name]" @click="$emit('click')">name</a>
 </template>
 
 <script>
@@ -45,9 +45,3 @@
 		}
 	}
 </script>
-
-<style>
-	.tool:hover{
-
-	}
-</style>

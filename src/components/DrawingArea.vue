@@ -72,24 +72,12 @@
     },
 
     mounted () {
-      let imageSize     = { width: false, height: false }
+      let imageSize     = { width: null, height: $(window).height()-$('.controls').height() }
       let $drawBoard    = $( '.literally.core' )
       let $colorPicker  = $( '.vc-compact' )
       //  activating function: functionality and backgroundColor to orange (reseting others')
-      let activateTool = (tool) => {
-        if( tool.tool ) this.lc.setTool( tool.tool )
-        if( tool.name.indexOf('color') == -1 ) {
-          this.hideColorPicker()
-          this.activeColorPicker = null
-          this.activeColorName = null
-        }
-
-        this.tools.forEach( (_tool) => {
-          if (_tool == tool)                          _tool.el.css( 'backgroundColor', '#fd9f01' )
-          else if(_tool.name.indexOf('color') == -1)  _tool.el.css( 'backgroundColor', 'transparent' )
-        })
-      }
       //  init Literally Canvas
+      $('.literally.core').css('height', $(window).height()-$('.controls').height())
       this.lc = LC.init(
         $drawBoard.get(0),
         {
@@ -181,18 +169,62 @@
         tool.el.css( 'cursor', 'pointer' )
         tool.el.click( (e) => {
           e.preventDefault()
-          activateTool(tool)
+          this.activateTool(tool)
         })
       })
-      $drawBoard.css( 'height', $(window).height() )
-      activateTool( this.tools[0] )
+      this.activateTool( this.tools[0] )
 
+      $(window).on('resize', () => {
+        let w = $(window)
+        this.lc.setImageSize( w.width(), w.height() )
+      })
 
       //  events
       $colorPicker.click( this.onColorSelect )
     },
 
     methods: {
+      activateTool(tool) {
+        if( tool.tool ) this.lc.setTool( tool.tool )
+        if( tool.name.indexOf('color') == -1 ) {
+          this.hideColorPicker()
+          this.activeColorPicker = null
+          this.activeColorName = null
+        }
+
+        this.tools.forEach( (_tool) => {
+          if (_tool == tool)                          _tool.el.css( 'backgroundColor', '#fd9f01' )
+          else if(_tool.name.indexOf('color') == -1)  _tool.el.css( 'backgroundColor', 'transparent' )
+        })
+      },
+
+      outsideClick(trigger, container) {
+        const onClick = (ev) => {
+          const safetyLimit = 1000
+          let parentContainer = ev.target
+          let i = 0
+
+          while (parentContainer !== document.body && parentContainer !== null) {
+            if (parentContainer === container) {
+              return
+            }
+
+            parentContainer = parentContainer.parentNode
+
+            i++
+            if (i > safetyLimit) {
+              console.log('Infinite loop @ event.outsideClick')
+              return
+            }
+          }
+
+          trigger(ev)
+          window.removeEventListener('click', onClick)
+        }
+
+        window.addEventListener('click', onClick)
+      },
+
       exportSVG( e ) {
         if( e )   e.preventDefault()
         window.console.log( this.lc.getImage() )
@@ -266,6 +298,14 @@
 
       showColorPicker() {
         this.displayColorPicker = true
+
+        //  setTimeout for trigger at the next input click
+        setTimeout( () => {
+          this.outsideClick(
+            () => {this.onColorSelect( null )},
+            $( '.vc-compact-colors' )
+          )
+        }, 1 )
       },
 
       hideColorPicker() {
@@ -278,6 +318,12 @@
       },
 
       onColorSelect( e ) {
+        window.console.log( 'the id triggered is ' + e.delegateTarget )
+        if( e.delegateTarget ) {
+          return
+        }
+
+        //  setTimeout to wait the trigger on the color
         setTimeout( () => {
           let pickedColor = $( '.vc-compact-color-item' ).filter( function() {
             return $( this ).find( '.vc-compact-dot' ).css( 'display' ) == 'block'
@@ -309,15 +355,20 @@
   @import './literallycanvas-core.css'
 </style>
 <style>
-  .controls {
+  .tools {
     border-bottom: 1px solid #222;
     padding-bottom: 10px;
   }
+  .controls {
+    padding-top: 5px;
+  }
   .spacer {
-    padding-left: 20px;
+    padding-left: 34px;
+  }
+  .secondaryTools a {
+    display: inline-flex;
   }
   .tools a {
-    display: inline-flex;
     margin-left: 10px;
   }
   .tools a.rectangleTool {
@@ -329,6 +380,7 @@
   .tools .actions {
     width: 30%;
     padding-left: 50px;
+    padding-top: 5px;
   }
   .tools .secondaryTools {
     clear: both;
@@ -359,5 +411,8 @@
   }
   #tool-colorBackground {
     background-color: #eeeeee;
-  }  
+  }
+  .primaryTools a:hover, .secondaryTools a:hover {
+    background-color: lightgray !important;
+  }
 </style>

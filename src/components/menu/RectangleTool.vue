@@ -23,6 +23,17 @@
 		width: 20px;
 		height: 20px;
 	}
+	a.hideRectangleTool {
+		border-radius: 3px;
+		width: 24px;
+		height: 24px;
+		display: inline-block;
+	}
+	a.hideRectangleTool svg {
+		display: block;
+    	margin: auto;
+    	padding-top: 2px;
+	}
 	a.rectangleTool span {
 		display: inline-flex;
 	}
@@ -49,6 +60,31 @@
 		height: 14px;
 		width: 14px;
 	}
+	#tool-pencil svg {
+		margin-top: 2px;
+	}
+	#tool-eraser svg {
+		margin-top: 4px;
+	}
+	#tool-text svg {
+		margin-top: 6px;
+	}
+	#tool-line svg {
+		margin-top: 4px;
+	}
+	#tool-rectangle svg {
+		margin-top: 5px;
+	}
+	#tool-ellipse svg {
+		margin-top: 4px;
+	}
+	#tool-polygon svg {
+		margin-top: 2px;
+	}
+	#tool-eyedropper svg {
+		margin-top: 3px;
+	}
+
 	.tool:hover{
 
 	}
