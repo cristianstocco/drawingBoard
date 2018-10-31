@@ -45,3 +45,17 @@
 		}
 	}
 </script>
+
+<style>
+	a.hideRectangleTool {
+		border-radius: 3px;
+		width: 24px;
+		height: 24px;
+		display: inline-block;
+	}
+	a.hideRectangleTool svg {
+		display: block;
+    	margin: auto;
+    	padding-top: 2px;
+	}
+</style>

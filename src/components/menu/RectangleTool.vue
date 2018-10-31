@@ -23,17 +23,6 @@
 		width: 20px;
 		height: 20px;
 	}
-	a.hideRectangleTool {
-		border-radius: 3px;
-		width: 24px;
-		height: 24px;
-		display: inline-block;
-	}
-	a.hideRectangleTool svg {
-		display: block;
-    	margin: auto;
-    	padding-top: 2px;
-	}
 	a.rectangleTool span {
 		display: inline-flex;
 	}

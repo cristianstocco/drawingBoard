@@ -75,7 +75,6 @@
       let imageSize     = { width: null, height: $(window).height()-$('.controls').height() }
       let $drawBoard    = $( '.literally.core' )
       let $colorPicker  = $( '.vc-compact' )
-      //  activating function: functionality and backgroundColor to orange (reseting others')
       //  init Literally Canvas
       $('.literally.core').css('height', $(window).height()-$('.controls').height())
       this.lc = LC.init(
@@ -91,78 +90,77 @@
         {
           name: 'tool-pencil',
           el: $('#tool-pencil'),
-          tool: new LC.tools.Pencil(this.lc)
+          lcTool: new LC.tools.Pencil(this.lc)
         },
         {
           name: 'tool-eraser',
           el: $('#tool-eraser'),
-          tool: new LC.tools.Eraser(this.lc)
+          lcTool: new LC.tools.Eraser(this.lc)
         },
         {
           name: 'tool-line',
           el: $('#tool-line'),
-          tool: new LC.tools.Line(this.lc)
+          lcTool: new LC.tools.Line(this.lc)
         },
         {
           name: 'tool-polygon',
           el: $('#tool-polygon'),
-          tool: new LC.tools.Polygon(this.lc)
+          lcTool: new LC.tools.Polygon(this.lc)
         },
         {
           name: 'tool-ellipse',
           el: $('#tool-ellipse'),
-          tool: new LC.tools.Ellipse(this.lc)
+          lcTool: new LC.tools.Ellipse(this.lc)
         },
         {
           name: 'tool-text',
           el: $('#tool-text'),
-          tool: new LC.tools.Text(this.lc)
+          lcTool: new LC.tools.Text(this.lc)
         },
         {
           name: 'tool-rectangle',
           el: $('#tool-rectangle'),
-          tool: new LC.tools.Rectangle(this.lc)
+          lcTool: new LC.tools.Rectangle(this.lc)
         },
         {
           name: 'tool-eyedropper',
           el: $('#tool-eyedropper'),
-          tool: new LC.tools.Eyedropper(this.lc)
+          lcTool: new LC.tools.Eyedropper(this.lc)
         },
         {
           name: 'tool-colorStroke',
           el: $('#tool-colorStroke'),
           type: 'primary',
-          tool: null
+          lcTool: null
         },
         {
           name: 'tool-colorFill',
           el: $('#tool-colorFill'),
           type: 'secondary',
-          tool: null
+          lcTool: null
         },
         {
           name: 'tool-colorBackground',
           el: $('#tool-colorBackground'),
           type: 'background',
-          tool: null
+          lcTool: null
         },
         {
           name: 'tool-smallSize',
           el: $('#tool-smallSize'),
-          tool: null
+          lcTool: null
         },
         {
           name: 'tool-mediumSize',
           el: $('#tool-mediumSize'),
-          tool: null
+          lcTool: null
         },
         {
           name: 'tool-bigSize',
           el: $('#tool-bigSize'),
-          tool: null
+          lcTool: null
         }
       ]
-
 
       //  set-up UI
       this.tools.forEach( (tool) => {
@@ -174,22 +172,18 @@
       })
       this.activateTool( this.tools[0] )
 
-      $(window).on('resize', () => {
-        let w = $(window)
-        this.lc.setImageSize( w.width(), w.height() )
-      })
-
       //  events
       $colorPicker.click( this.onColorSelect )
     },
 
     methods: {
+      //  activating function: functionality and backgroundColor to orange (reseting others')
       activateTool(tool) {
-        if( tool.tool ) this.lc.setTool( tool.tool )
+        if( tool.lcTool ) this.lc.setTool( tool.lcTool )
         if( tool.name.indexOf('color') == -1 ) {
           this.hideColorPicker()
-          this.activeColorPicker = null
           this.activeColorName = null
+          this.activeColorType = null
         }
 
         this.tools.forEach( (_tool) => {
@@ -198,13 +192,22 @@
         })
       },
 
-      outsideClick(trigger, container) {
+      outsideClick(trigger, container, containerNotTriggering) {
         const onClick = (ev) => {
           const safetyLimit = 1000
           let parentContainer = ev.target
           let i = 0
+          let skipTrigger = false
 
           while (parentContainer !== document.body && parentContainer !== null) {
+            if(
+                    containerNotTriggering.indexOf( parentContainer.getAttribute('id') ) != -1
+                ||  containerNotTriggering.indexOf( parentContainer.getAttribute('class') ) != -1
+              ) {
+              skipTrigger = true
+              return
+            }
+
             if (parentContainer === container) {
               return
             }
@@ -218,7 +221,9 @@
             }
           }
 
-          trigger(ev)
+          if( !skipTrigger )
+            trigger(ev)
+
           window.removeEventListener('click', onClick)
         }
 
@@ -252,34 +257,25 @@
       },
 
       colorStroke() {
+        this.setActiveColor( 'stroke' )
         this.showColorPicker()
-
-        this.tools.forEach( (tool) => {
-          if( tool.name.toLowerCase().indexOf('stroke') != -1 ) {
-            this.activeColorPicker = tool.name
-            this.activeColorName = tool.type
-          }
-        })
       },
 
       colorFill() {
+        this.setActiveColor( 'fill' )
         this.showColorPicker()
-        
-        this.tools.forEach( (tool) => {
-          if( tool.name.toLowerCase().indexOf('fill') != -1 ) {
-            this.activeColorPicker = tool.name
-            this.activeColorName = tool.type
-          }
-        })
       },
 
       colorBackground() {
+        this.setActiveColor( 'background' )
         this.showColorPicker()
-        
+      },
+
+      setActiveColor( filter ) {
         this.tools.forEach( (tool) => {
-          if( tool.name.toLowerCase().indexOf('background') != -1 ) {
-            this.activeColorPicker = tool.name
-            this.activeColorName = tool.type
+          if( tool.name.toLowerCase().indexOf( filter ) != -1 ) {
+            this.activeColorName = tool.name
+            this.activeColorType = tool.type
           }
         })
       },
@@ -303,7 +299,8 @@
         setTimeout( () => {
           this.outsideClick(
             () => {this.onColorSelect( null )},
-            $( '.vc-compact-colors' )
+            $( '.vc-compact-colors' ),
+            this.getToolNames( 'color' )
           )
         }, 1 )
       },
@@ -313,17 +310,12 @@
       },
 
       setColor( colorCode ) {
-        $( '#'+this.activeColorPicker ).css( 'backgroundColor', colorCode )
-        this.lc.setColor( this.activeColorName, colorCode )
+        $( '#'+this.activeColorName ).css( 'backgroundColor', colorCode )
+        this.lc.setColor( this.activeColorType, colorCode )
       },
 
       onColorSelect( e ) {
-        window.console.log( 'the id triggered is ' + e.delegateTarget )
-        if( e.delegateTarget ) {
-          return
-        }
-
-        //  setTimeout to wait the trigger on the color
+        //  setTimeout to wait the click event on the color element
         setTimeout( () => {
           let pickedColor = $( '.vc-compact-color-item' ).filter( function() {
             return $( this ).find( '.vc-compact-dot' ).css( 'display' ) == 'block'
@@ -335,6 +327,17 @@
         }, 1)
       },
 
+      getToolNames( filter ) {
+        let stack = []
+
+        this.tools.forEach( (tool) => {
+          if( tool.name.toLowerCase().indexOf( filter ) != -1 )
+            stack.push( tool.name )
+        })
+
+        return stack
+      }
+
     },
 
     data() {
@@ -342,8 +345,8 @@
         lc: null,
         tools: null,
         displayColorPicker: false,
-        activeColorPicker: null,
         activeColorName: null,
+        activeColorType: null,
         colors
       }
     }
