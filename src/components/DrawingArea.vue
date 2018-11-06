@@ -12,6 +12,7 @@
           <Tool name="ellipse"/>
           <Tool name="polygon"/>
           <Tool name="eyedropper"/>
+          <Tool name="pan"/>
         </div>
 
         <div class="actions">
@@ -19,7 +20,7 @@
           <Tool name="redo" @click="redo"/>
           <Tool name="zoomOut" @click="zoomOut"/>
           <Tool name="zoomIn" @click="zoomIn"/>
-          <Tool name="export" @click="exportSVG"/>
+          <Tool name="export" @click="onExport"/>
           <Tool name="trashCan" @click="clear"/>
         </div>
 
@@ -44,7 +45,7 @@
 
 <script>
   // === LIBRARIES
-  import LC             from './literallycanvas-core.js'
+  import LC             from './js/literallycanvas-core.js'
   import Event          from './js/event.js'
   import Tool           from './menu/Tool.vue'
   import RectangleTool  from './menu/RectangleTool.vue'
@@ -72,19 +73,25 @@
     },
 
     mounted () {
-      let imageSize     = { width: null, height: $(window).height()-$('.controls').height() }
-      let $drawBoard    = $( '.literally.core' )
-      let $colorPicker  = $( '.vc-compact' )
+      let drawingBoardHeight  = $(window).height() - $('.controls').height()
+      let imageSize           = { width: null, height: null }
+      let $drawingBoard       = $('.literally.core')
+      let $colorPicker        = $('.vc-compact')
+
+      //  drawing board ui
+      $drawingBoard.css('height', drawingBoardHeight)
+
       //  init Literally Canvas
-      $('.literally.core').css('height', $(window).height()-$('.controls').height())
       this.lc = LC.init(
-        $drawBoard.get(0),
+        $drawingBoard.get(0),
         {
           backgroundColor: '#eee',
           primaryColor: 'black',
-          imageSize: imageSize
+          imageSize: imageSize,
+          keyboardShortcuts: false
         }
       )
+
       //  menu tools
       this.tools = [
         {
@@ -128,6 +135,11 @@
           lcTool: new LC.tools.Eyedropper(this.lc)
         },
         {
+          name: 'tool-pan',
+          el: $('#tool-pan'),
+          lcTool: new LC.tools.Pan(this.lc)
+        },
+        {
           name: 'tool-colorStroke',
           el: $('#tool-colorStroke'),
           type: 'primary',
@@ -164,7 +176,8 @@
 
       //  set-up UI
       this.tools.forEach( (tool) => {
-        tool.el.css( 'cursor', 'pointer' )
+        this.setPointerCursor( tool.el )
+
         tool.el.click( (e) => {
           e.preventDefault()
           this.activateTool(tool)
@@ -179,19 +192,24 @@
     methods: {
       //  activating function: functionality and backgroundColor to orange (reseting others')
       activateTool(tool) {
+        let isColorTool = tool.name.indexOf('color') > -1
+
         if( tool.lcTool ) this.lc.setTool( tool.lcTool )
-        if( tool.name.indexOf('color') == -1 ) {
+
+        if( !isColorTool ) {
           this.hideColorPicker()
           this.activeColorName = null
           this.activeColorType = null
         }
 
         this.tools.forEach( (_tool) => {
-          if (_tool == tool)                          _tool.el.css( 'backgroundColor', '#fd9f01' )
-          else if(_tool.name.indexOf('color') == -1)  _tool.el.css( 'backgroundColor', 'transparent' )
+          if (_tool == tool)      _tool.el.css( 'backgroundColor', '#fd9f01' )
+          else if(!isColorTool)   _tool.el.css( 'backgroundColor', 'transparent' )
         })
       },
 
+      //  triggers "trigger" function on a click outside of a "container"
+      //  if "containerNotTriggering" is clicked the "trigger" callback is not executed
       outsideClick(trigger, container, containerNotTriggering) {
         const onClick = (ev) => {
           const safetyLimit = 1000
@@ -230,47 +248,88 @@
         window.addEventListener('click', onClick)
       },
 
-      exportSVG( e ) {
-        if( e )   e.preventDefault()
-        window.console.log( this.lc.getImage() )
-        window.console.log( this.lc.getImage().toDataURL() )
+      //  drawingBoard: triggers when click on export
+      onExport() {
+        this.setExportSettings()
+        this.lc.on( 'shapeSave', this.exportSVG )
       },
 
+      //  drawingBoard: triggers when click on export
+      setExportSettings() {
+        this.setCrosshairCursor()
+        this.smallSize()
+        this.lc.setColor( 'primary', '#ccc' )
+        this.lc.setColor( 'secondary', 'transparent' )
+        this.lc.setTool( new LC.tools.Rectangle(this.lc) )
+      },
+
+      //  drawingBoard: exports the SVG
+      exportSVG( border ) {
+        const options = ['shapes', 'imageSize', 'colors', 'position', 'scale', 'backgroundShapes']
+        let _rect = {
+          x:      border.shape.x,
+          y:      border.shape.y,
+          width:  border.shape.width,
+          height: border.shape.height,
+        }
+        let _margin = {
+          top:    2,
+          right:  2,
+          bottom: 2,
+          left:   2
+        }
+
+        let img = LC.renderSnapshotToImage(this.lc.getSnapshot(options), {rect: _rect, margin: _margin})
+        window.console.log( img.toDataURL() )
+
+        this.lc.undo()
+        this.setPointerCursor()
+      },
+
+      //  drawingBoard: undo last action
       undo() {
         this.lc.undo()
       },
 
+      //  drawingBoard: redo last action
       redo() {
         this.lc.redo()
       },
 
+      //  drawingBoard: zoom in
       zoomIn() {
         this.lc.zoom( 0.1 )
       },
 
+      //  drawingBoard: zoom out
       zoomOut() {
         this.lc.zoom( -0.1 )
       },
 
+      //  drawingBoard: clears the board
       clear() {
         this.lc.clear()
       },
 
+      //  drawingBoard: sets up the stroke color
       colorStroke() {
         this.setActiveColor( 'stroke' )
         this.showColorPicker()
       },
 
+      //  drawingBoard: sets up the fill color
       colorFill() {
         this.setActiveColor( 'fill' )
         this.showColorPicker()
       },
 
+      //  drawingBoard: sets up the background color
       colorBackground() {
         this.setActiveColor( 'background' )
         this.showColorPicker()
       },
 
+      //  drawingBoard: sets up the status for the next color choice
       setActiveColor( filter ) {
         this.tools.forEach( (tool) => {
           if( tool.name.toLowerCase().indexOf( filter ) != -1 ) {
@@ -280,18 +339,22 @@
         })
       },
 
+      //  drawingBoard: small stroke
       smallSize() {
         this.lc.tool.strokeWidth = 2
       },
 
+      //  drawingBoard: medium stroke
       mediumSize() {
         this.lc.tool.strokeWidth = 5
       },
 
+      //  drawingBoard: big stroke
       bigSize() {
         this.lc.tool.strokeWidth = 10
       },
 
+      //  drawingBoard: shows the color picker pop-up
       showColorPicker() {
         this.displayColorPicker = true
 
@@ -305,15 +368,18 @@
         }, 1 )
       },
 
+      //  drawingBoard: hides the color picker pop-up
       hideColorPicker() {
         this.displayColorPicker = false
       },
 
+      //  drawingBoard: sets up the color of tool using the status
       setColor( colorCode ) {
         $( '#'+this.activeColorName ).css( 'backgroundColor', colorCode )
         this.lc.setColor( this.activeColorType, colorCode )
       },
 
+      //  drawingBoard: triggers when clicked on a color square
       onColorSelect( e ) {
         //  setTimeout to wait the click event on the color element
         setTimeout( () => {
@@ -327,6 +393,7 @@
         }, 1)
       },
 
+      //  drawingBoard: returns a stack with filtered tool names
       getToolNames( filter ) {
         let stack = []
 
@@ -336,6 +403,20 @@
         })
 
         return stack
+      },
+
+      //  ui: set cursor type
+      setCrosshairCursor( $element ) {
+        $element = $element ? $element : $('body')
+
+        $element.css('cursor', 'crosshair')
+      },
+
+      //  ui: set cursor type
+      setPointerCursor( $element ) {
+        $element = $element ? $element : $('body')
+
+        $element.css('cursor', 'pointer')
       }
 
     },
@@ -355,7 +436,7 @@
 </script>
 
 <style scoped>
-  @import './literallycanvas-core.css'
+  @import './css/literallycanvas-core.css'
 </style>
 <style>
   .tools {

@@ -73,6 +73,9 @@
 	#tool-eyedropper svg {
 		margin-top: 3px;
 	}
+	#tool-pan svg {
+		margin-top: 4px;
+	}
 
 	.tool:hover{
 
