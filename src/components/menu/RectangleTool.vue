@@ -1,5 +1,5 @@
 <template>
-	<a :id="'tool-' + name" class="rectangleTool" @click="$emit('click')">
+	<a :id="'tool-' + name" class="rectangleTool tool" @click="$emit('click')">
 		<span :class="name" />
 	</a>
 </template>
@@ -75,9 +75,5 @@
 	}
 	#tool-pan svg {
 		margin-top: 4px;
-	}
-
-	.tool:hover{
-
 	}
 </style>

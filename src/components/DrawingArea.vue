@@ -11,7 +11,7 @@
           <Tool name="rectangle"/>
           <Tool name="ellipse"/>
           <Tool name="polygon"/>
-          <Tool name="eyedropper"/>
+          <!-- <Tool name="eyedropper"/> -->
           <Tool name="pan"/>
         </div>
 
@@ -27,11 +27,14 @@
         <div class="secondaryTools">
           <RectangleTool name="colorStroke" @click="colorStroke"/>
           <RectangleTool name="colorFill" @click="colorFill"/>
-          <RectangleTool name="colorBackground" @click="colorBackground"/>
           <span class="spacer"/>
           <RectangleTool name="smallSize" @click="smallSize"/>
           <RectangleTool name="mediumSize" @click="mediumSize"/>
           <RectangleTool name="bigSize" @click="bigSize"/>
+        </div>
+        <div class="labels">
+          <span class="stroke">stroke</span>
+          <span class="fill">fill</span>
         </div>
 
         <Compact v-model="colors" v-show="displayColorPicker" ref="colorPickerContainer" />
@@ -73,10 +76,12 @@
     },
 
     mounted () {
+      let __this__            = this
       let drawingBoardHeight  = $(window).height() - $('.controls').height()
       let imageSize           = { width: null, height: null }
       let $drawingBoard       = $('.literally.core')
       let $colorPicker        = $('.vc-compact')
+      let $sizeTools          = $('a[id*="Size"]')
 
       //  drawing board ui
       $drawingBoard.css('height', drawingBoardHeight)
@@ -150,31 +155,10 @@
           el: $('#tool-colorFill'),
           type: 'secondary',
           lcTool: null
-        },
-        {
-          name: 'tool-colorBackground',
-          el: $('#tool-colorBackground'),
-          type: 'background',
-          lcTool: null
-        },
-        {
-          name: 'tool-smallSize',
-          el: $('#tool-smallSize'),
-          lcTool: null
-        },
-        {
-          name: 'tool-mediumSize',
-          el: $('#tool-mediumSize'),
-          lcTool: null
-        },
-        {
-          name: 'tool-bigSize',
-          el: $('#tool-bigSize'),
-          lcTool: null
         }
       ]
 
-      //  set-up UI
+      //  set-up general tool activation
       this.tools.forEach( (tool) => {
         this.setPointerCursor( tool.el )
 
@@ -185,6 +169,13 @@
       })
       this.activateTool( this.tools[0] )
 
+      //  set-up size tool activation
+      $sizeTools.click( function(e) {
+        e.preventDefault()
+        __this__.activateSizeTool($(this), $sizeTools)
+      })
+      $sizeTools.eq(0).trigger( 'click' )
+
       //  events
       $colorPicker.click( this.onColorSelect )
     },
@@ -192,25 +183,28 @@
     methods: {
       //  activating function: functionality and backgroundColor to orange (reseting others')
       activateTool(tool) {
-        let isColorTool = tool.name.indexOf('color') > -1
-
         if( tool.lcTool ) this.lc.setTool( tool.lcTool )
 
-        if( !isColorTool ) {
+        if( tool.name.indexOf('color') == -1 ) {
           this.hideColorPicker()
           this.activeColorName = null
           this.activeColorType = null
         }
 
         this.tools.forEach( (_tool) => {
-          if (_tool == tool)      _tool.el.css( 'backgroundColor', '#fd9f01' )
-          else if(!isColorTool)   _tool.el.css( 'backgroundColor', 'transparent' )
+          if( _tool == tool ) _tool.el.addClass( 'selected' )
+          else                _tool.el.removeClass( 'selected' )
         })
       },
 
+      //  activating function: functionality and backgroundColor to orange (reseting others')
+      activateSizeTool($tool, $sizeTools) {
+        $sizeTools.removeClass( 'selected' )
+        $tool.addClass( 'selected' )
+      },
+
       //  triggers "trigger" function on a click outside of a "container"
-      //  if "containerNotTriggering" is clicked the "trigger" callback is not executed
-      outsideClick(trigger, container, containerNotTriggering) {
+      outsideClick(trigger, container) {
         const onClick = (ev) => {
           const safetyLimit = 1000
           let parentContainer = ev.target
@@ -218,14 +212,6 @@
           let skipTrigger = false
 
           while (parentContainer !== document.body && parentContainer !== null) {
-            if(
-                    containerNotTriggering.indexOf( parentContainer.getAttribute('id') ) != -1
-                ||  containerNotTriggering.indexOf( parentContainer.getAttribute('class') ) != -1
-              ) {
-              skipTrigger = true
-              return
-            }
-
             if (parentContainer === container) {
               return
             }
@@ -239,8 +225,7 @@
             }
           }
 
-          if( !skipTrigger )
-            trigger(ev)
+          trigger(ev)
 
           window.removeEventListener('click', onClick)
         }
@@ -251,7 +236,9 @@
       //  drawingBoard: triggers when click on export
       onExport() {
         this.setExportSettings()
-        this.lc.on( 'shapeSave', this.exportSVG )
+        this.exportCallback = this.lc.on( 'shapeSave', this.exportSVG )
+
+        //  to manage the export behaviour while clicking on different color pickers
       },
 
       //  drawingBoard: triggers when click on export
@@ -284,6 +271,8 @@
 
         this.lc.undo()
         this.setPointerCursor()
+
+        this.exportCallback()
       },
 
       //  drawingBoard: undo last action
@@ -323,12 +312,6 @@
         this.showColorPicker()
       },
 
-      //  drawingBoard: sets up the background color
-      colorBackground() {
-        this.setActiveColor( 'background' )
-        this.showColorPicker()
-      },
-
       //  drawingBoard: sets up the status for the next color choice
       setActiveColor( filter ) {
         this.tools.forEach( (tool) => {
@@ -362,8 +345,7 @@
         setTimeout( () => {
           this.outsideClick(
             () => {this.onColorSelect( null )},
-            $( '.vc-compact-colors' ),
-            this.getToolNames( 'color' )
+            $( '.vc-compact-colors' )
           )
         }, 1 )
       },
@@ -428,6 +410,7 @@
         displayColorPicker: false,
         activeColorName: null,
         activeColorType: null,
+        exportCallback: null,
         colors
       }
     }
@@ -445,6 +428,7 @@
   }
   .controls {
     padding-top: 5px;
+    background-color: #f0f0f0;
   }
   .spacer {
     padding-left: 34px;
@@ -467,7 +451,18 @@
     padding-top: 5px;
   }
   .tools .secondaryTools {
+    height: 24px;
     clear: both;
+  }
+  .labels span {
+    margin-left: 10px;
+    width: 24px;
+    font-size: 10px;
+    display: inline-block;
+    text-align: center;
+  }
+  .selected.tool {
+    background-color: #fd9f01 !important;
   }
 
   .btn-primary {
@@ -490,13 +485,10 @@
     font-weight: 600;
     text-transform: uppercase;
   }
-  #tool-colorStroke {
-    background-color: black;
-  }
-  #tool-colorBackground {
-    background-color: #eeeeee;
-  }
   .primaryTools a:hover, .secondaryTools a:hover {
     background-color: lightgray !important;
-  }
+  }  
+  .literally.core * {
+    background-color: white;
+}
 </style>
