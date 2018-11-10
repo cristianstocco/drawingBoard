@@ -31,6 +31,11 @@
           <RectangleTool name="smallSize" @click="smallSize"/>
           <RectangleTool name="mediumSize" @click="mediumSize"/>
           <RectangleTool name="bigSize" @click="bigSize"/>
+          <span class="spacer"/>
+          <span v-show="displayLineSettings">
+            <RectangleTool name="dashLine" @click="dashLine"/>
+            <RectangleTool name="arrowLine" @click="arrowLine"/>
+          </span>
         </div>
         <div class="labels">
           <span class="stroke">stroke</span>
@@ -96,6 +101,7 @@
           keyboardShortcuts: false
         }
       )
+      this.lc.on( 'toolChange', this.onToolChange )
 
       //  menu tools
       this.tools = [
@@ -160,19 +166,17 @@
 
       //  set-up general tool activation
       this.tools.forEach( (tool) => {
-        this.setPointerCursor( tool.el )
-
         tool.el.click( (e) => {
           e.preventDefault()
           this.activateTool(tool)
         })
       })
-      this.activateTool( this.tools[0] )
+      this.activatePreviousTool()
 
       //  set-up size tool activation
       $sizeTools.click( function(e) {
         e.preventDefault()
-        __this__.activateSizeTool($(this), $sizeTools)
+        __this__.activateSizeStroke($(this), $sizeTools)
       })
       $sizeTools.eq(0).trigger( 'click' )
 
@@ -181,15 +185,21 @@
     },
 
     methods: {
-      //  activating function: functionality and backgroundColor to orange (reseting others')
+      //  drawingBoard: activates previous tool
+      activatePreviousTool() {
+        let tool = this.getTool( this.activeToolName )
+        let defaultTool = this.tools[0]
+
+        if( tool )  this.activateTool( tool )
+        else        this.activateTool( defaultTool )
+      },
+
+      //  drawingBoard: activates tool functionality and backgroundColor to orange (reseting others')
       activateTool(tool) {
         if( tool.lcTool ) this.lc.setTool( tool.lcTool )
 
-        if( tool.name.indexOf('color') == -1 ) {
-          this.hideColorPicker()
-          this.activeColorName = null
-          this.activeColorType = null
-        }
+        if( tool.name.toLowerCase().indexOf('line') == -1 ) this.hideLineSettings()
+        else                                                this.showLineSettings()
 
         this.tools.forEach( (_tool) => {
           if( _tool == tool ) _tool.el.addClass( 'selected' )
@@ -197,8 +207,8 @@
         })
       },
 
-      //  activating function: functionality and backgroundColor to orange (reseting others')
-      activateSizeTool($tool, $sizeTools) {
+      //  drawingBoard: activates size stroke status for drawing
+      activateSizeStroke($tool, $sizeTools) {
         $sizeTools.removeClass( 'selected' )
         $tool.addClass( 'selected' )
       },
@@ -233,6 +243,11 @@
         window.addEventListener('click', onClick)
       },
 
+      //  drawingBoard: saving current tool state
+      onToolChange( tool ) {
+        this.activeToolName = tool.tool.name.toLowerCase()
+      },
+
       //  drawingBoard: triggers when click on export
       onExport() {
         this.setExportSettings()
@@ -243,7 +258,6 @@
 
       //  drawingBoard: triggers when click on export
       setExportSettings() {
-        this.setCrosshairCursor()
         this.smallSize()
         this.lc.setColor( 'primary', '#ccc' )
         this.lc.setColor( 'secondary', 'transparent' )
@@ -270,8 +284,6 @@
         window.console.log( img.toDataURL() )
 
         this.lc.undo()
-        this.setPointerCursor()
-
         this.exportCallback()
       },
 
@@ -303,13 +315,24 @@
       //  drawingBoard: sets up the stroke color
       colorStroke() {
         this.setActiveColor( 'stroke' )
-        this.showColorPicker()
+
+
+        //  setTimeout for switching color picker mode
+        setTimeout(
+          () => {this.showColorPicker()},
+          10
+        )
       },
 
       //  drawingBoard: sets up the fill color
       colorFill() {
         this.setActiveColor( 'fill' )
-        this.showColorPicker()
+
+        //  setTimeout for switching color picker mode
+        setTimeout(
+          () => {this.showColorPicker()},
+          10
+        )
       },
 
       //  drawingBoard: sets up the status for the next color choice
@@ -337,6 +360,20 @@
         this.lc.tool.strokeWidth = 10
       },
 
+      //  drawingBoard: sets a dash line
+      dashLine() {
+        this.lc.tool.__proto__.isDashed = !this.lc.tool.__proto__.isDashed
+
+        $( '[id*="dash"]' ).toggleClass( 'selected' )
+      },
+
+      //  drawingBoard: sets line as arrow
+      arrowLine() {
+        this.lc.tool.__proto__.hasEndArrow = !this.lc.tool.__proto__.hasEndArrow
+
+        $( '[id*="arrow"]' ).toggleClass( 'selected' )
+      },
+
       //  drawingBoard: shows the color picker pop-up
       showColorPicker() {
         this.displayColorPicker = true
@@ -353,6 +390,17 @@
       //  drawingBoard: hides the color picker pop-up
       hideColorPicker() {
         this.displayColorPicker = false
+        this.activatePreviousTool()
+      },
+
+      //  drawingBoard: shows settings for line tool
+      showLineSettings() {
+        this.displayLineSettings = true
+      },
+
+      //  drawingBoard: hides settings for line tool
+      hideLineSettings() {
+        this.displayLineSettings = false
       },
 
       //  drawingBoard: sets up the color of tool using the status
@@ -387,18 +435,13 @@
         return stack
       },
 
-      //  ui: set cursor type
-      setCrosshairCursor( $element ) {
-        $element = $element ? $element : $('body')
+      //  drawingBoard: returns a tool filtered by a name
+      getTool( name ) {
+        for( let i = 0; i < this.tools.length; i++ )
+          if( this.tools[ i ].name.toLowerCase().indexOf(name) != -1 )
+            return this.tools[ i ]
 
-        $element.css('cursor', 'crosshair')
-      },
-
-      //  ui: set cursor type
-      setPointerCursor( $element ) {
-        $element = $element ? $element : $('body')
-
-        $element.css('cursor', 'pointer')
+        return null
       }
 
     },
@@ -407,7 +450,9 @@
       return {
         lc: null,
         tools: null,
+        activeToolName: null,
         displayColorPicker: false,
+        displayLineSettings: false,
         activeColorName: null,
         activeColorType: null,
         exportCallback: null,
@@ -487,8 +532,15 @@
   }
   .primaryTools a:hover, .secondaryTools a:hover {
     background-color: lightgray !important;
-  }  
+  }
+  .primaryTools a:hover, .secondaryTools a:hover, .actions a:hover {
+    cursor: pointer;
+  }
   .literally.core * {
     background-color: white;
-}
+  }
+  .vc-compact {
+    position: absolute;
+    z-index: 1;
+  }
 </style>
