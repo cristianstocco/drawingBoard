@@ -1,5 +1,5 @@
 <template>
-	<a :id="'tool-' + name" class="hideBorderedTool tool" v-html="icons[name]" @click="$emit('click')">name</a>
+	<a :id="'tool-' + name" class="hideRectangleTool tool" v-html="icons[name]" @click="$emit('click')">name</a>
 </template>
 
 <script>
@@ -47,13 +47,13 @@
 </script>
 
 <style>
-	a.hideBorderedTool {
+	a.hideRectangleTool {
 		border-radius: 3px;
 		width: 24px;
 		height: 24px;
 		display: inline-block;
 	}
-	a.hideBorderedTool svg {
+	a.hideRectangleTool svg {
 		display: block;
     	margin: auto;
     	padding-top: 2px;

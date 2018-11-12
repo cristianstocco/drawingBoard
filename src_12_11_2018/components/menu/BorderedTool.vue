@@ -1,5 +1,5 @@
 <template>
-	<a :id="'tool-' + name" class="rectangleTool tool" @click="$emit('click')">
+	<a :id="'tool-' + name" class="borderedTool tool" @click="$emit('click')">
 		<span :class="name" />
 	</a>
 </template>
@@ -17,33 +17,33 @@
 </script>
 
 <style>
-	a.rectangleTool {
+	a.borderedTool {
 		border: 2px solid black;
 		border-radius: 3px;
 		width: 20px;
 		height: 20px;
 	}
-	a.rectangleTool span {
+	a.borderedTool span {
 		display: inline-flex;
 	}
-	a.rectangleTool span[class$=Size] {
+	a.borderedTool span[class$=Size] {
 		position: absolute;
 		background-color: black;
 		border-radius: 50%;
 	}
-	a.rectangleTool span.smallSize {
+	a.borderedTool span.smallSize {
 		top: 8px;
 		left: 8px;
 		height: 4px;
 		width: 4px;
 	}
-	a.rectangleTool span.mediumSize {
+	a.borderedTool span.mediumSize {
 		top: 5px;
 		left: 5px;
 		height: 10px;
 		width: 10px;
 	}
-	a.rectangleTool span.bigSize {
+	a.borderedTool span.bigSize {
 		top: 3px;
 		left: 3px;
 		height: 14px;

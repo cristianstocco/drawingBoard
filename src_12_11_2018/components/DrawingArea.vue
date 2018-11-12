@@ -1,6 +1,13 @@
 <template>
 
-  <div :id="name">
+  <div>
+    <div class="tabs">
+      <div class="tabList">
+        <div id="tab1" class="active">TAB 1</div>
+      </div>
+      <div id="addTab" @click="newTab">+</div>
+    </div>
+
     <div class="controls">
       <div class="tools">
         <div class="primaryTools">
@@ -61,9 +68,9 @@
   import jQuery         from 'jquery'
 
   // === GLOBALS
-  // window.jQuery = window.$ = jQuery
+  window.jQuery = window.$ = jQuery
 
-  // === LOCALS
+  // === GLOBALS
   var colors = {
     hex: '#194d33',
     hsl: { h: 150, s: 0.5, l: 0.2, a: 1 },
@@ -74,8 +81,6 @@
 
   export default {
 
-    props: ['name'],
-
     components: {
       Tool,
       BorderedTool,
@@ -83,19 +88,12 @@
     },
 
     mounted () {
-      let $drawingArea        = $('#' + this.name)
       let __this__            = this
-      let drawingBoardHeight  = $(window).height() - $('.controls').height() - $('.tabs').height()
+      let drawingBoardHeight  = $(window).height() - $('.controls').height()
       let imageSize           = { width: null, height: null }
-      let $drawingBoard       = $drawingArea.find('.literally.core')
-      let $colorPicker        = $drawingArea.find('.vc-compact')
-      let $sizeTools          = $drawingArea.find('a[id*="Size"]')
-
-      // window.console.log( "HEYYY how many drawingBoard?: " + $drawingBoard.length )
-      // window.console.log( this.name )
-      // setTimeout(()=>{
-      //   window.console.log( $('#' + this.name).length )
-      // }, 1000)
+      let $drawingBoard       = $('.literally.core')
+      let $colorPicker        = $('.vc-compact')
+      let $sizeTools          = $('a[id*="Size"]')
 
       //  drawing board ui
       $drawingBoard.css('height', drawingBoardHeight)
@@ -538,11 +536,9 @@
   }
 </script>
 
-<!--
 <style scoped>
   @import './css/literallycanvas-core.css'
 </style>
 <style scoped>
   @import './css/drawingarea.css'
 </style>
--->
