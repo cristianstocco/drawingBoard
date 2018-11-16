@@ -61,7 +61,7 @@
   font-weight: 600;
   text-transform: uppercase;
 }
-.primaryTools a:hover, .secondaryTools a:hover {
+.primaryTools a:hover, .secondaryTools a:hover:not([id*=color]) {
   background-color: lightgray !important;
 }
 .primaryTools a:hover, .secondaryTools a:hover, .actions a:hover {
@@ -74,6 +74,7 @@
 .vc-compact {
   position: absolute;
   z-index: 1;
+  width: 245px !important;
 }
 .tabs {
   border-bottom: 1px solid lightgray;
@@ -96,6 +97,30 @@
   width: 22px;
   height: inherit;
   border-left: 1px solid lightgray;
+}
+
+.pointerDefault {
+  cursor: auto;
+}
+.pointerCross {
+  cursor: crosshair;
+}
+.pointerSmall {
+  cursor: url(../../assets/small.png), auto;
+}
+.pointerMedium {
+  cursor: url(../../assets/medium.png), auto;
+}
+.pointerBig {
+  cursor: url(../../assets/big.png), auto;
+}
+#tool-dashLine {
+  background: url(../../assets/dashed-line.png) bottom center no-repeat;
+  background-size: 100% 100%;
+}
+#tool-arrowLine {
+  background: url(../../assets/arrow.png) bottom center no-repeat;
+  background-size: 100% 100%;
 }
 
 .w100p { width: 100%; }

@@ -87,9 +87,11 @@
       let __this__            = this
       let drawingBoardHeight  = $(window).height() - $('.controls').height() - $('.tabs').height()
       let imageSize           = { width: null, height: null }
-      let $drawingBoard       = $drawingArea.find('.literally.core')
       let $colorPicker        = $drawingArea.find('.vc-compact')
       let $sizeTools          = $drawingArea.find('a[id*="Size"]')
+      this.$drawingBoard      = $drawingArea.find('.literally.core')
+      this.$colorPicker       = $( '.vc-compact-colors' )
+      this.$colorPickerItems  = $( '.vc-compact-color-item' )
 
       // window.console.log( "HEYYY how many drawingBoard?: " + $drawingBoard.length )
       // window.console.log( this.name )
@@ -98,11 +100,11 @@
       // }, 1000)
 
       //  drawing board ui
-      $drawingBoard.css('height', drawingBoardHeight)
+      this.$drawingBoard.css('height', drawingBoardHeight)
 
       //  init Literally Canvas
       this.lc = LC.init(
-        $drawingBoard.get(0),
+        this.$drawingBoard.get(0),
         {
           backgroundColor: '#eee',
           primaryColor: 'black',
@@ -117,7 +119,8 @@
         {
           name: 'tool-pencil',
           el: $('#tool-pencil'),
-          lcTool: new LC.tools.Pencil(this.lc)
+          lcTool: new LC.tools.Pencil(this.lc),
+          pointerDisplay: true
         },
         {
           name: 'tool-eraser',
@@ -149,11 +152,11 @@
           el: $('#tool-rectangle'),
           lcTool: new LC.tools.Rectangle(this.lc)
         },
-        {
+        /* {
           name: 'tool-eyedropper',
           el: $('#tool-eyedropper'),
           lcTool: new LC.tools.Eyedropper(this.lc)
-        },
+        }, */
         {
           name: 'tool-pan',
           el: $('#tool-pan'),
@@ -208,14 +211,28 @@
 
       //  drawingBoard: activates tool functionality and backgroundColor to orange (reseting others')
       activateTool(tool) {
+        let isColorTool = tool.el.attr('id').toLowerCase().indexOf('color') != -1;
+        
         if( tool.lcTool ) this.lc.setTool( tool.lcTool )
 
         if( tool.name.toLowerCase().indexOf('line') == -1 ) this.hideLineSettings()
         else                                                this.showLineSettings()
 
+        if( tool.pointerDisplay )
+          this.setPencilPointer()
+        else
+          this.setDefaultPointer()
+
         this.tools.forEach( (_tool) => {
-          if( _tool == tool ) _tool.el.addClass( 'selected' )
-          else                _tool.el.removeClass( 'selected' )
+          if( _tool == tool && !isColorTool ) _tool.el.addClass( 'selected' )
+          else                                _tool.el.removeClass( 'selected' )
+        })
+      },
+
+      //  drawingBoard: deferences tools
+      deactivateTools() {
+        this.tools.forEach( (tool) => {
+          tool.el.removeClass( 'selected' )
         })
       },
 
@@ -262,19 +279,22 @@
 
       //  drawingBoard: triggers when click on export
       onExport() {
-        this.setExportSettings()
+        let __this__ = this
+
+        this.exportSettings()
+        this.setCrossPointer()
         this.exportCallback = this.lc.on( 'shapeSave', this.exportSVG )
       },
 
-      //  drawingBoard: triggers when click on export
-      setExportSettings() {
+      //  drawingBoard: settings for export
+      exportSettings() {
         this.smallSize()
         this.lc.setColor( 'primary', '#ccc' )
         this.lc.setColor( 'secondary', 'transparent' )
         this.lc.setTool( new LC.tools.Rectangle(this.lc) )
       },
 
-      //  drawingBoard: exports the SVG
+      //  drawingBoard: triggers when click on export
       exportSVG( border ) {
         const options = ['shapes', 'imageSize', 'colors', 'position', 'scale', 'backgroundShapes']
         let _rect = {
@@ -293,7 +313,23 @@
         let img = LC.renderSnapshotToImage(this.lc.getSnapshot(options), {rect: _rect, margin: _margin})
         window.console.log( img.toDataURL() )
 
-        this.lc.undo()
+        this.lc.shapes.pop()
+        setTimeout( () => {
+          try{
+            this.lc.undo()
+          } catch( error ) {}
+        }, 1 )
+        setTimeout( () => {
+          try{
+            this.lc.undo()
+          } catch( error ) {}
+        }, 2 )
+        setTimeout( () => {
+          try{
+            this.lc.redo()
+          } catch( error ) {}
+        }, 3 )
+        this.activatePreviousTool() //  to add colors settings
         this.exportCallback()
       },
 
@@ -324,8 +360,8 @@
 
       //  drawingBoard: sets up the stroke color
       colorStroke() {
-        this.setActiveColor( 'stroke' )
-
+        this.setActiveStatus( 'stroke' )
+        this.setActiveColor()
 
         //  setTimeout for switching color picker mode
         setTimeout(
@@ -336,7 +372,8 @@
 
       //  drawingBoard: sets up the fill color
       colorFill() {
-        this.setActiveColor( 'fill' )
+        this.setActiveStatus( 'fill' )
+        this.setActiveColor()
 
         //  setTimeout for switching color picker mode
         setTimeout(
@@ -346,13 +383,24 @@
       },
 
       //  drawingBoard: sets up the status for the next color choice
-      setActiveColor( filter ) {
+      setActiveStatus( filter ) {
         this.tools.forEach( (tool) => {
           if( tool.name.toLowerCase().indexOf( filter ) != -1 ) {
-            this.activeColorName = tool.name
+            this.activeColorID = tool.name
             this.activeColorType = tool.type
           }
         })
+      },
+
+      //  drawingBoard: sets up the color for the current color
+      setActiveColor() {
+        let __this__ = this
+        let colorCode = $( '#'+this.activeColorID ).data( 'backgroundColor' )
+
+        this.$colorPickerItems.find( '.vc-compact-dot' ).hide()
+        this.$colorPickerItems.filter( function() {
+          return __this__.getPickedColor( $( this ).attr( 'aria-label' ) ) == colorCode
+        }).find( '.vc-compact-dot' ).show()
       },
 
       //  drawingBoard: small stroke
@@ -387,12 +435,13 @@
       //  drawingBoard: shows the color picker pop-up
       showColorPicker() {
         this.displayColorPicker = true
+        this.deactivateTools()
 
         //  setTimeout for trigger at the next input click
         setTimeout( () => {
           this.outsideClick(
             () => {this.onColorSelect( null )},
-            $( '.vc-compact-colors' )
+            this.$colorPicker
           )
         }, 1 )
       },
@@ -415,7 +464,8 @@
 
       //  drawingBoard: sets up the color of tool using the status
       setColor( colorCode ) {
-        $( '#'+this.activeColorName ).css( 'backgroundColor', colorCode )
+        $( '#'+this.activeColorID ).css( 'backgroundColor', colorCode )
+        $( '#'+this.activeColorID ).data( 'backgroundColor', colorCode )  //  saving backgroundColor since the hover is repainting the div
         this.lc.setColor( this.activeColorType, colorCode )
       },
 
@@ -426,17 +476,16 @@
 
         //  setTimeout to wait the click event on the color element
         setTimeout( () => {
-          let pickedColor = $( '.vc-compact-color-item' ).filter( function() {
+          let colorCode = this.getPickedColor( this.$colorPickerItems.filter( function() {
             return $( this ).find( '.vc-compact-dot' ).css( 'display' ) == 'block'
-          }).attr('aria-label')
-          let colorCode = pickedColor.substring( pickedColor.indexOf(':')+1 )
+          }).attr('aria-label') )
 
           this.setColor( colorCode )
           this.hideColorPicker()
         }, 1)
       },
 
-      //  drawingBoard: returns a stack with filtered tool names
+      //  toolCollection: returns a stack with filtered tool names
       getToolNames( filter ) {
         let stack = []
 
@@ -448,7 +497,7 @@
         return stack
       },
 
-      //  drawingBoard: returns a tool filtered by a name
+      //  toolCollection: returns a tool filtered by a name
       getTool( name ) {
         for( let i = 0; i < this.tools.length; i++ )
           if( this.tools[ i ].name.toLowerCase().indexOf(name) != -1 )
@@ -457,9 +506,33 @@
         return null
       },
 
+      //  pickedColorBoard: makes a substring of the color label as "Color:#001122" returning the hash value
+      getPickedColor( colorLabel ) {
+        if( !colorLabel )
+          return null
+
+        return colorLabel.substring( colorLabel.indexOf(':')+1 )
+      },
+
+      //  UI: reset pointer settings
+      setDefaultPointer() {
+        this.$drawingBoard.removeClass( 'pointerNone' )
+        this.$drawingBoard.removeClass( 'pointerCross' )
+      },
+
+      //  UI: set cross pointer settings
+      setCrossPointer() {
+        this.$drawingBoard.addClass( 'pointerCross' )
+      },
+
+      //  UI: set pencil pointer settings
+      setPencilPointer() {
+        this.$drawingBoard.addClass( 'pointerSmall' )
+      },
+
       //  UI: adds a tab
       newTab() {
-        if( this.tabs_no == 5 ) {
+        if( this.tabsNo == 5 ) {
           window.alert( 'you can create only 5 tabs' )
           return
         }
@@ -475,7 +548,7 @@
         $tabs
           .removeClass( this.getWidthClass() )
           .removeClass( 'active' )
-        this.tabs_no++
+        this.tabsNo++
         $tabs.addClass( this.getWidthClass() )
         $newTab.addClass( 'active' )
       },
@@ -492,17 +565,17 @@
 
       //  UI: returns the value of the id attribute for a new tab
       getTabID() {
-        return 'tab'+( this.tabs_no+1 )
+        return 'tab'+( this.tabsNo+1 )
       },
 
       //  UI: returns the text for new tab
       getTabText() {
-        return 'TAB '+( this.tabs_no+1 )
+        return 'TAB '+( this.tabsNo+1 )
       },
 
       //  UI: returns the value of the width class based on the tub number
       getWidthClass() {
-        switch( this.tabs_no ) {
+        switch( this.tabsNo ) {
           case 1:
             return 'w100p'
           case 2:
@@ -522,27 +595,24 @@
 
     data() {
       return {
+        //  status, data
         lc: null,
         tools: null,
         activeToolName: null,
         displayColorPicker: false,
         displayLineSettings: false,
-        activeColorName: null,
+        activeColorID: null,
         activeColorType: null,
-        exportCallback: null,
         colors,
-        tabs_no: 1
+        tabsNo: 1,
+        exportCallback: null,
+
+        //  jQuery objects
+        $colorPicker: null,
+        $colorPickerItems: null,
+        $drawingBoard: null
       }
     }
 
   }
 </script>
-
-<!--
-<style scoped>
-  @import './css/literallycanvas-core.css'
-</style>
-<style scoped>
-  @import './css/drawingarea.css'
-</style>
--->
