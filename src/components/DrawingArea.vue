@@ -88,7 +88,7 @@
       let drawingBoardHeight  = $(window).height() - $('.controls').height() - $('.tabs').height()
       let imageSize           = { width: null, height: null }
       let $colorPicker        = $drawingArea.find('.vc-compact')
-      let $sizeTools          = $drawingArea.find('a[id*="Size"]')
+      this.$sizeTools         = $drawingArea.find('a[id*="Size"]')
       this.$drawingBoard      = $drawingArea.find('.literally.core')
       this.$colorPicker       = $( '.vc-compact-colors' )
       this.$colorPickerItems  = $( '.vc-compact-color-item' )
@@ -120,7 +120,7 @@
           name: 'tool-pencil',
           el: $('#tool-pencil'),
           lcTool: new LC.tools.Pencil(this.lc),
-          pointerDisplay: true
+          dotDisplay: true
         },
         {
           name: 'tool-eraser',
@@ -130,7 +130,8 @@
         {
           name: 'tool-line',
           el: $('#tool-line'),
-          lcTool: new LC.tools.Line(this.lc)
+          lcTool: new LC.tools.Line(this.lc),
+          dotDisplay: true
         },
         {
           name: 'tool-polygon',
@@ -176,6 +177,12 @@
         }
       ]
 
+      //  set-up size tool activation
+      this.$sizeTools.click( function(e) {
+        e.preventDefault()
+        __this__.activateSizeStroke($(this))
+      })
+
       //  set-up general tool activation
       this.tools.forEach( (tool) => {
         tool.el.click( (e) => {
@@ -184,13 +191,6 @@
         })
       })
       this.activatePreviousTool()
-
-      //  set-up size tool activation
-      $sizeTools.click( function(e) {
-        e.preventDefault()
-        __this__.activateSizeStroke($(this), $sizeTools)
-      })
-      $sizeTools.eq(0).trigger( 'click' )
 
       //  set-up UI
       this.tabDimension()
@@ -218,10 +218,7 @@
         if( tool.name.toLowerCase().indexOf('line') == -1 ) this.hideLineSettings()
         else                                                this.showLineSettings()
 
-        if( tool.pointerDisplay )
-          this.setPencilPointer()
-        else
-          this.setDefaultPointer()
+        this.toActivateSize()
 
         this.tools.forEach( (_tool) => {
           if( _tool == tool && !isColorTool ) _tool.el.addClass( 'selected' )
@@ -237,8 +234,8 @@
       },
 
       //  drawingBoard: activates size stroke status for drawing
-      activateSizeStroke($tool, $sizeTools) {
-        $sizeTools.removeClass( 'selected' )
+      activateSizeStroke($tool) {
+        this.$sizeTools.removeClass( 'selected' )
         $tool.addClass( 'selected' )
       },
 
@@ -274,13 +271,15 @@
 
       //  drawingBoard: saving current tool state
       onToolChange( tool ) {
-        this.activeToolName = tool.tool.name.toLowerCase()
+        if( !this.onExporting )
+          this.activeToolName = tool.tool.name.toLowerCase()
       },
 
       //  drawingBoard: triggers when click on export
       onExport() {
         let __this__ = this
 
+        this.saveToolSettings()
         this.exportSettings()
         this.setCrossPointer()
         this.exportCallback = this.lc.on( 'shapeSave', this.exportSVG )
@@ -288,6 +287,8 @@
 
       //  drawingBoard: settings for export
       exportSettings() {
+        this.onExporting = true
+
         this.smallSize()
         this.lc.setColor( 'primary', '#ccc' )
         this.lc.setColor( 'secondary', 'transparent' )
@@ -329,8 +330,12 @@
             this.lc.redo()
           } catch( error ) {}
         }, 3 )
-        this.activatePreviousTool() //  to add colors settings
+
+        this.activatePreviousTool()
+        this.resetToolSettings()
         this.exportCallback()
+
+        this.onExporting = false
       },
 
       //  drawingBoard: undo last action
@@ -403,19 +408,35 @@
         }).find( '.vc-compact-dot' ).show()
       },
 
+      //  drawingBoard: saving tool settings
+      saveToolSettings() {
+        this.primaryColor = this.lc.getColor('primary')
+        this.secondaryColor = this.lc.getColor('secondary')
+        this.strokeWidth = this.lc.tool.strokeWidth
+      },
+
       //  drawingBoard: small stroke
       smallSize() {
         this.lc.tool.strokeWidth = 2
+
+        if( this.isDotPointer )
+          this.setDotPointer()
       },
 
       //  drawingBoard: medium stroke
       mediumSize() {
         this.lc.tool.strokeWidth = 5
+
+        if( this.isDotPointer )
+          this.setDotPointer()
       },
 
       //  drawingBoard: big stroke
       bigSize() {
         this.lc.tool.strokeWidth = 10
+
+        if( this.isDotPointer )
+          this.setDotPointer()
       },
 
       //  drawingBoard: sets a dash line
@@ -469,6 +490,12 @@
         this.lc.setColor( this.activeColorType, colorCode )
       },
 
+      resetToolSettings() {
+        this.lc.setColor( 'primary', this.primaryColor )
+        this.lc.setColor( 'secondary', this.secondaryColor )
+        this.lc.tool.strokeWidth = this.strokeWidth
+      },
+
       //  drawingBoard: triggers when clicked on a color square
       onColorSelect( e ) {
         if( e )
@@ -515,9 +542,12 @@
       },
 
       //  UI: reset pointer settings
-      setDefaultPointer() {
-        this.$drawingBoard.removeClass( 'pointerNone' )
+      resetPointer() {
+        this.$drawingBoard.removeClass( 'pointerSmall' )
+        this.$drawingBoard.removeClass( 'pointerMedium' )
+        this.$drawingBoard.removeClass( 'pointerBig' )
         this.$drawingBoard.removeClass( 'pointerCross' )
+        this.isDotPointer = false
       },
 
       //  UI: set cross pointer settings
@@ -526,8 +556,41 @@
       },
 
       //  UI: set pencil pointer settings
-      setPencilPointer() {
-        this.$drawingBoard.addClass( 'pointerSmall' )
+      setDotPointer() {
+        this.resetPointer()
+
+        this.$drawingBoard.addClass( 'pointer'+this.getPointerSize() )
+        this.isDotPointer = true
+      },
+
+      //  UI: get current pointer size
+      getPointerSize() {
+        if( this.lc.tool.strokeWidth == 2 )
+          return 'Small'
+        else if( this.lc.tool.strokeWidth == 5 )
+          return 'Medium'
+        else if( this.lc.tool.strokeWidth == 10 )
+          return 'Big'
+        else
+          return null
+      },
+
+      //  UI: activate the size on
+      toActivateSize() {
+        if( this.lc.tool.strokeWidth == 2 )
+          return this.$sizeTools.filter( (i, el) => {
+            return $(el).attr('id').toLowerCase().indexOf( 'small' ) != -1
+          }).trigger('click')
+        else if( this.lc.tool.strokeWidth == 5 )
+          return this.$sizeTools.filter( (i, el) => {
+            return $(el).attr('id').toLowerCase().indexOf( 'medium' ) != -1
+          }).trigger('click')
+        else if( this.lc.tool.strokeWidth == 10 )
+          return this.$sizeTools.filter( (i, el) => {
+            return $(el).attr('id').toLowerCase().indexOf( 'big' ) != -1
+          }).trigger('click')
+        else
+          return null
       },
 
       //  UI: adds a tab
@@ -606,11 +669,17 @@
         colors,
         tabsNo: 1,
         exportCallback: null,
+        isDotPointer: null,
+        primaryColor: null,
+        secondaryColor: null,
+        strokeWidth: null,
+        onExporting: false,
 
         //  jQuery objects
         $colorPicker: null,
         $colorPickerItems: null,
-        $drawingBoard: null
+        $drawingBoard: null,
+        $sizeTools: null
       }
     }
 
