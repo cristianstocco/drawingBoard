@@ -22,9 +22,7 @@
   float: left;
 }
 .tools .actions {
-  width: 30%;
   padding-left: 50px;
-  padding-top: 5px;
 }
 .tools .secondaryTools {
   height: 24px;
@@ -61,11 +59,14 @@
   font-weight: 600;
   text-transform: uppercase;
 }
-.primaryTools a:hover, .secondaryTools a:hover:not([id*=color]) {
+.primaryTools a:hover, .secondaryTools a:hover:not([id*=color]), .actions a:hover {
   background-color: lightgray !important;
 }
 .primaryTools a:hover, .secondaryTools a:hover, .actions a:hover {
   cursor: pointer;
+}
+.actions a {
+  padding-top: 5px;
 }
 .literally.core * {
   clear: both;
@@ -121,6 +122,9 @@
 #tool-arrowLine {
   background: url(../../assets/arrow.png) bottom center no-repeat;
   background-size: 100% 100%;
+}
+#tool-colorStroke {
+  background-color: rgb(0, 0, 0);
 }
 
 .w100p { width: 100%; }

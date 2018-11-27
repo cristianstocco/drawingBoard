@@ -87,11 +87,10 @@
       let __this__            = this
       let drawingBoardHeight  = $(window).height() - $('.controls').height() - $('.tabs').height()
       let imageSize           = { width: null, height: null }
-      let $colorPicker        = $drawingArea.find('.vc-compact')
       this.$sizeTools         = $drawingArea.find('a[id*="Size"]')
       this.$drawingBoard      = $drawingArea.find('.literally.core')
-      this.$colorPicker       = $( '.vc-compact-colors' )
-      this.$colorPickerItems  = $( '.vc-compact-color-item' )
+      this.$colorPicker       = $drawingArea.find('.vc-compact')
+      this.$colorPickerItems  = $drawingArea.find('.vc-compact-color-item')
 
       // window.console.log( "HEYYY how many drawingBoard?: " + $drawingBoard.length )
       // window.console.log( this.name )
@@ -107,7 +106,7 @@
         this.$drawingBoard.get(0),
         {
           backgroundColor: '#eee',
-          primaryColor: 'black',
+          primaryColor: this.primaryColor,
           imageSize: imageSize,
           keyboardShortcuts: false
         }
@@ -196,7 +195,7 @@
       this.tabDimension()
 
       //  events
-      $colorPicker.click( this.onColorSelect )
+      this.$colorPicker.click( this.onColorSelect )
     },
 
     methods: {
@@ -462,7 +461,7 @@
         setTimeout( () => {
           this.outsideClick(
             () => {this.onColorSelect( null )},
-            this.$colorPicker
+            this.$colorPicker.get(0)
           )
         }, 1 )
       },
@@ -498,6 +497,10 @@
 
       //  drawingBoard: triggers when clicked on a color square
       onColorSelect( e ) {
+        if( !this.displayColorPicker ) {
+          return;
+        }
+
         if( e )
           e.preventDefault()
 
@@ -670,8 +673,8 @@
         tabsNo: 1,
         exportCallback: null,
         isDotPointer: null,
-        primaryColor: null,
-        secondaryColor: null,
+        primaryColor: 'black',
+        secondaryColor: 'white',
         strokeWidth: null,
         onExporting: false,
 
