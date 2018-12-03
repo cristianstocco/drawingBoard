@@ -25,8 +25,8 @@
         </div>
 
         <div class="secondaryTools">
-          <BorderedTool name="colorStroke" @click="colorStroke"/>
-          <BorderedTool name="colorFill" @click="colorFill"/>
+          <BorderedTool name="colorStroke" @click="color('stroke')"/>
+          <BorderedTool name="colorFill" @click="color('fill')"/>
           <span class="spacer"/>
           <BorderedTool name="smallSize" @click="smallSize"/>
           <BorderedTool name="mediumSize" @click="mediumSize"/>
@@ -42,7 +42,12 @@
           <span class="fill">fill</span>
         </div>
 
-        <Compact v-model="colors" v-show="displayColorPicker" ref="colorPickerContainer" />
+        <div id='strokePicker' v-show="displayStrokePicker" @click="setColor('stroke')">
+          <Compact v-model="colors"/>
+        </div>
+        <div id='fillPicker' v-show="displayFillPicker" @click="setColor('fill')">
+          <Compact v-model="colors"/>
+        </div>
       </div>
     </div>
 
@@ -84,13 +89,11 @@
 
     mounted () {
       let $drawingArea        = $('#' + this.name)
-      let __this__            = this
+      let self            = this
       let drawingBoardHeight  = $(window).height() - $('.controls').height() - $('.tabs').height()
       let imageSize           = { width: null, height: null }
       this.$sizeTools         = $drawingArea.find('a[id*="Size"]')
       this.$drawingBoard      = $drawingArea.find('.literally.core')
-      this.$colorPicker       = $drawingArea.find('.vc-compact')
-      this.$colorPickerItems  = $drawingArea.find('.vc-compact-color-item')
 
       // window.console.log( "HEYYY how many drawingBoard?: " + $drawingBoard.length )
       // window.console.log( this.name )
@@ -176,26 +179,45 @@
         }
       ]
 
+      //  color map
+      this.colorMap = {
+        'stroke': {
+          el: $('#tool-colorStroke'),
+          toggleStatus: function() {
+            self.resetPickers()
+            self.displayStrokePicker = true
+
+            self.outsideClick( self.resetPickers, this.el.get(0) )
+          },
+        },
+        'fill': {
+          el: $('#tool-colorFill'),
+          toggleStatus: function() {
+            self.resetPickers()
+            self.displayFillPicker = true
+
+            self.outsideClick( self.resetPickers, this.el.get(0) )
+          },
+        },
+      },
+
       //  set-up size tool activation
       this.$sizeTools.click( function(e) {
         e.preventDefault()
-        __this__.activateSizeStroke($(this))
+        self.activateSizeStroke($(this))
       })
 
       //  set-up general tool activation
-      this.tools.forEach( (tool) => {
-        tool.el.click( (e) => {
+      this.tools.forEach(tool => {
+        tool.el.click(e => {
           e.preventDefault()
           this.activateTool(tool)
         })
       })
       this.activatePreviousTool()
 
-      //  set-up UI
-      this.tabDimension()
-
-      //  events
-      this.$colorPicker.click( this.onColorSelect )
+      //  set-up default color for stroke
+      this.colorMap[ 'stroke' ].el.data( 'backgroundColor', '#000000' )
     },
 
     methods: {
@@ -276,7 +298,7 @@
 
       //  drawingBoard: triggers when click on export
       onExport() {
-        let __this__ = this
+        let self = this
 
         this.saveToolSettings()
         this.exportSettings()
@@ -329,9 +351,10 @@
             this.lc.redo()
           } catch( error ) {}
         }, 3 )
+        // this.lc.clearSnapshotBorder()
 
         this.activatePreviousTool()
-        this.resetToolSettings()
+        // this.resetToolSettings()
         this.exportCallback()
 
         this.onExporting = false
@@ -363,48 +386,9 @@
       },
 
       //  drawingBoard: sets up the stroke color
-      colorStroke() {
-        this.setActiveStatus( 'stroke' )
-        this.setActiveColor()
-
-        //  setTimeout for switching color picker mode
-        setTimeout(
-          () => {this.showColorPicker()},
-          10
-        )
-      },
-
-      //  drawingBoard: sets up the fill color
-      colorFill() {
-        this.setActiveStatus( 'fill' )
-        this.setActiveColor()
-
-        //  setTimeout for switching color picker mode
-        setTimeout(
-          () => {this.showColorPicker()},
-          10
-        )
-      },
-
-      //  drawingBoard: sets up the status for the next color choice
-      setActiveStatus( filter ) {
-        this.tools.forEach( (tool) => {
-          if( tool.name.toLowerCase().indexOf( filter ) != -1 ) {
-            this.activeColorID = tool.name
-            this.activeColorType = tool.type
-          }
-        })
-      },
-
-      //  drawingBoard: sets up the color for the current color
-      setActiveColor() {
-        let __this__ = this
-        let colorCode = $( '#'+this.activeColorID ).data( 'backgroundColor' )
-
-        this.$colorPickerItems.find( '.vc-compact-dot' ).hide()
-        this.$colorPickerItems.filter( function() {
-          return __this__.getPickedColor( $( this ).attr( 'aria-label' ) ) == colorCode
-        }).find( '.vc-compact-dot' ).show()
+      color( type ) {
+        this.colorMap[ type ].toggleStatus()
+        this.setPickerColor( type )
       },
 
       //  drawingBoard: saving tool settings
@@ -440,36 +424,16 @@
 
       //  drawingBoard: sets a dash line
       dashLine() {
-        this.lc.tool.__proto__.isDashed = !this.lc.tool.__proto__.isDashed
+        this.lc.tool.isDashed = !this.lc.tool.isDashed
 
         $( '[id*="dash"]' ).toggleClass( 'selected' )
       },
 
       //  drawingBoard: sets line as arrow
       arrowLine() {
-        this.lc.tool.__proto__.hasEndArrow = !this.lc.tool.__proto__.hasEndArrow
+        this.lc.tool.hasEndArrow = !this.lc.tool.hasEndArrow
 
         $( '[id*="arrow"]' ).toggleClass( 'selected' )
-      },
-
-      //  drawingBoard: shows the color picker pop-up
-      showColorPicker() {
-        this.displayColorPicker = true
-        this.deactivateTools()
-
-        //  setTimeout for trigger at the next input click
-        setTimeout( () => {
-          this.outsideClick(
-            () => {this.onColorSelect( null )},
-            this.$colorPicker.get(0)
-          )
-        }, 1 )
-      },
-
-      //  drawingBoard: hides the color picker pop-up
-      hideColorPicker() {
-        this.displayColorPicker = false
-        this.activatePreviousTool()
       },
 
       //  drawingBoard: shows settings for line tool
@@ -482,38 +446,44 @@
         this.displayLineSettings = false
       },
 
-      //  drawingBoard: sets up the color of tool using the status
-      setColor( colorCode ) {
-        $( '#'+this.activeColorID ).css( 'backgroundColor', colorCode )
-        $( '#'+this.activeColorID ).data( 'backgroundColor', colorCode )  //  saving backgroundColor since the hover is repainting the div
-        this.lc.setColor( this.activeColorType, colorCode )
-      },
-
-      resetToolSettings() {
-        this.lc.setColor( 'primary', this.primaryColor )
-        this.lc.setColor( 'secondary', this.secondaryColor )
-        this.lc.tool.strokeWidth = this.strokeWidth
-      },
-
-      //  drawingBoard: triggers when clicked on a color square
-      onColorSelect( e ) {
-        if( !this.displayColorPicker ) {
-          return;
-        }
-
-        if( e )
-          e.preventDefault()
-
-        //  setTimeout to wait the click event on the color element
-        setTimeout( () => {
-          let colorCode = this.getPickedColor( this.$colorPickerItems.filter( function() {
+      //  drawingBoard: sets up the color of tool
+      setColor( type ) {
+        this.$nextTick( () => {
+          let self = this
+          let $sel = $('.vc-compact-color-item').filter( function() {
             return $( this ).find( '.vc-compact-dot' ).css( 'display' ) == 'block'
-          }).attr('aria-label') )
+          })
+          let colorCode = this.getPickedColor( $sel.attr('aria-label') )
 
-          this.setColor( colorCode )
-          this.hideColorPicker()
-        }, 1)
+          this.colorMap[ type ].el.css( 'backgroundColor', colorCode )
+          this.colorMap[ type ].el.data( 'backgroundColor', colorCode )
+          self.resetPickers()
+        })
       },
+
+      //  drawingBoard: 
+      setPickerColor( type ) {
+        let color = this.getTool( type ).el.data('backgroundColor')
+
+        $('.vc-compact-dot').hide()
+        if( color ) {
+          $('.vc-compact-color-item').filter( function() {
+            return $( this ).attr( 'aria-label' ).indexOf( color ) != -1
+          }).find( '.vc-compact-dot' ).show()
+        }
+      },
+
+      //  drawingBoard: resets pickers status
+      resetPickers() {
+        this.displayStrokePicker = false
+        this.displayFillPicker = false
+      },
+
+      // resetToolSettings() {
+      //   this.lc.setColor( 'primary', this.primaryColor )
+      //   this.lc.setColor( 'secondary', this.secondaryColor )
+      //   this.lc.tool.strokeWidth = this.strokeWidth
+      // },
 
       //  toolCollection: returns a stack with filtered tool names
       getToolNames( filter ) {
@@ -528,9 +498,9 @@
       },
 
       //  toolCollection: returns a tool filtered by a name
-      getTool( name ) {
+      getTool( type ) {
         for( let i = 0; i < this.tools.length; i++ )
-          if( this.tools[ i ].name.toLowerCase().indexOf(name) != -1 )
+          if( this.tools[ i ].name.toLowerCase().indexOf(type) != -1 )
             return this.tools[ i ]
 
         return null
@@ -568,94 +538,25 @@
 
       //  UI: get current pointer size
       getPointerSize() {
-        if( this.lc.tool.strokeWidth == 2 )
-          return 'Small'
-        else if( this.lc.tool.strokeWidth == 5 )
-          return 'Medium'
-        else if( this.lc.tool.strokeWidth == 10 )
-          return 'Big'
-        else
-          return null
+        return {
+          2: 'Small',
+          5: 'Medium',
+          10: 'Big',
+        }[this.lc.tool.strokeWidth]
       },
 
       //  UI: activate the size on
       toActivateSize() {
-        if( this.lc.tool.strokeWidth == 2 )
-          return this.$sizeTools.filter( (i, el) => {
-            return $(el).attr('id').toLowerCase().indexOf( 'small' ) != -1
-          }).trigger('click')
-        else if( this.lc.tool.strokeWidth == 5 )
-          return this.$sizeTools.filter( (i, el) => {
-            return $(el).attr('id').toLowerCase().indexOf( 'medium' ) != -1
-          }).trigger('click')
-        else if( this.lc.tool.strokeWidth == 10 )
-          return this.$sizeTools.filter( (i, el) => {
-            return $(el).attr('id').toLowerCase().indexOf( 'big' ) != -1
-          }).trigger('click')
-        else
-          return null
-      },
-
-      //  UI: adds a tab
-      newTab() {
-        if( this.tabsNo == 5 ) {
-          window.alert( 'you can create only 5 tabs' )
-          return
+        let map = {
+          2: 'small',
+          5: 'medium',
+          10: 'big',
         }
 
-        let $newTab = $( document.createElement('div') )
-        let $tabList = $( '.tabs .tabList' )
-
-        $newTab.attr( 'id', this.getTabID() ).text( this.getTabText() )
-        $tabList.append( $newTab )
-
-        let $tabs = $( '.tabList div' );
-        
-        $tabs
-          .removeClass( this.getWidthClass() )
-          .removeClass( 'active' )
-        this.tabsNo++
-        $tabs.addClass( this.getWidthClass() )
-        $newTab.addClass( 'active' )
+        return this.$sizeTools.filter( 
+          (i, el) => $(el).attr('id').toLowerCase().indexOf(map[this.lc.tool.strokeWidth]) != -1
+        ).trigger('click')
       },
-
-      //  UI: sets up the tab bar dimension
-      tabDimension() {
-        let tabListWidth = $( window ).width() - $( '#addTab' ).width() - 1
-
-        $( '.tabs .tabList' )
-          .css( 'width', tabListWidth + 'px' )
-          .find( 'div' )
-          .addClass( 'w100p' )
-      },
-
-      //  UI: returns the value of the id attribute for a new tab
-      getTabID() {
-        return 'tab'+( this.tabsNo+1 )
-      },
-
-      //  UI: returns the text for new tab
-      getTabText() {
-        return 'TAB '+( this.tabsNo+1 )
-      },
-
-      //  UI: returns the value of the width class based on the tub number
-      getWidthClass() {
-        switch( this.tabsNo ) {
-          case 1:
-            return 'w100p'
-          case 2:
-            return 'w50p'
-          case 3:
-            return 'w33p'
-          case 4:
-            return 'w25p'
-          case 5:
-            return 'w20p'
-          default:
-            return null;
-        }
-      }
 
     },
 
@@ -665,7 +566,8 @@
         lc: null,
         tools: null,
         activeToolName: null,
-        displayColorPicker: false,
+        displayStrokePicker: false,
+        displayFillPicker: false,
         displayLineSettings: false,
         activeColorID: null,
         activeColorType: null,
@@ -677,6 +579,9 @@
         secondaryColor: 'white',
         strokeWidth: null,
         onExporting: false,
+
+        //  mappers
+        colorMap: null,
 
         //  jQuery objects
         $colorPicker: null,
