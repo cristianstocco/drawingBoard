@@ -1,6 +1,6 @@
 <template>
 
-  <div :id="name">
+  <div>
     <div class="controls">
       <div class="tools">
         <div class="primaryTools">
@@ -66,7 +66,7 @@
   import jQuery         from 'jquery'
 
   // === GLOBALS
-  // window.jQuery = window.$ = jQuery
+  window.jQuery = window.$ = jQuery
 
   // === LOCALS
   var colors = {
@@ -88,21 +88,16 @@
     },
 
     mounted () {
-      let $drawingArea        = $('#' + this.name)
-      let self            = this
+      this.$drawingArea       = $(this.$el)
+      let self                = this
       let drawingBoardHeight  = $(window).height() - $('.controls').height() - $('.tabs').height()
       let imageSize           = { width: null, height: null }
-      this.$sizeTools         = $drawingArea.find('a[id*="Size"]')
-      this.$drawingBoard      = $drawingArea.find('.literally.core')
+      this.$sizeTools         = this.$drawingArea.find('a[id*="Size"]')
+      this.$drawingBoard      = this.$drawingArea.find('.literally.core')
 
-      // window.console.log( "HEYYY how many drawingBoard?: " + $drawingBoard.length )
-      // window.console.log( this.name )
-      // setTimeout(()=>{
-      //   window.console.log( $('#' + this.name).length )
-      // }, 1000)
-
-      //  drawing board ui
+      //  drawing board & overlay UIs
       this.$drawingBoard.css('height', drawingBoardHeight)
+      this.initOverlay()
 
       //  init Literally Canvas
       this.lc = LC.init(
@@ -111,69 +106,71 @@
           backgroundColor: '#eee',
           primaryColor: this.primaryColor,
           imageSize: imageSize,
-          keyboardShortcuts: false
+          keyboardShortcuts: false,
+          tools: LC.defaultTools
         }
       )
       this.lc.on( 'toolChange', this.onToolChange )
+      this.lc.setColor( 'background', 'white' )
 
       //  menu tools
       this.tools = [
         {
           name: 'tool-pencil',
-          el: $('#tool-pencil'),
+          el: this.$drawingArea.find('#tool-pencil'),
           lcTool: new LC.tools.Pencil(this.lc),
           dotDisplay: true
         },
         {
           name: 'tool-eraser',
-          el: $('#tool-eraser'),
+          el: this.$drawingArea.find('#tool-eraser'),
           lcTool: new LC.tools.Eraser(this.lc)
         },
         {
           name: 'tool-line',
-          el: $('#tool-line'),
+          el: this.$drawingArea.find('#tool-line'),
           lcTool: new LC.tools.Line(this.lc),
           dotDisplay: true
         },
         {
           name: 'tool-polygon',
-          el: $('#tool-polygon'),
+          el: this.$drawingArea.find('#tool-polygon'),
           lcTool: new LC.tools.Polygon(this.lc)
         },
         {
           name: 'tool-ellipse',
-          el: $('#tool-ellipse'),
+          el: this.$drawingArea.find('#tool-ellipse'),
           lcTool: new LC.tools.Ellipse(this.lc)
         },
         {
           name: 'tool-text',
-          el: $('#tool-text'),
+          el: this.$drawingArea.find('#tool-text'),
           lcTool: new LC.tools.Text(this.lc)
         },
         {
           name: 'tool-rectangle',
-          el: $('#tool-rectangle'),
+          el: this.$drawingArea.find('#tool-rectangle'),
           lcTool: new LC.tools.Rectangle(this.lc)
         },
         /* {
           name: 'tool-eyedropper',
-          el: $('#tool-eyedropper'),
+          el: this.$drawingArea.find('#tool-eyedropper'),
           lcTool: new LC.tools.Eyedropper(this.lc)
         }, */
         {
           name: 'tool-pan',
-          el: $('#tool-pan'),
+          el: this.$drawingArea.find('#tool-pan'),
           lcTool: new LC.tools.Pan(this.lc)
         },
         {
           name: 'tool-colorStroke',
-          el: $('#tool-colorStroke'),
+          el: this.$drawingArea.find('#tool-colorStroke'),
           type: 'primary',
           lcTool: null
         },
         {
           name: 'tool-colorFill',
-          el: $('#tool-colorFill'),
+          el: this.$drawingArea.find('#tool-colorFill'),
           type: 'secondary',
           lcTool: null
         }
@@ -182,21 +179,33 @@
       //  color map
       this.colorMap = {
         'stroke': {
-          el: $('#tool-colorStroke'),
-          toggleStatus: function() {
+          el: this.$drawingArea.find('#tool-colorStroke'),
+          picker: this.$drawingArea.find('#strokePicker'),
+          role: 'primary',
+          toggleStatus: function( vue ) {
             self.resetPickers()
             self.displayStrokePicker = true
 
-            self.outsideClick( self.resetPickers, this.el.get(0) )
+            vue.$nextTick( () => {
+              self.outsideClick( () => {
+                if( self.displayStrokePicker )    self.resetPickers()
+              }, this.picker.get(0) )
+            })
           },
         },
         'fill': {
-          el: $('#tool-colorFill'),
-          toggleStatus: function() {
+          el: this.$drawingArea.find('#tool-colorFill'),
+          picker: this.$drawingArea.find('#fillPicker'),
+          role: 'secondary',
+          toggleStatus: function( vue ) {
             self.resetPickers()
             self.displayFillPicker = true
 
-            self.outsideClick( self.resetPickers, this.el.get(0) )
+            vue.$nextTick( () => {
+              self.outsideClick( () => {
+                if( self.displayFillPicker )      self.resetPickers()
+              }, this.picker.get(0) )
+            })
           },
         },
       },
@@ -298,32 +307,53 @@
 
       //  drawingBoard: triggers when click on export
       onExport() {
-        let self = this
-
         this.saveToolSettings()
-        this.exportSettings()
+        this.exportInit()
         this.setCrossPointer()
-        this.exportCallback = this.lc.on( 'shapeSave', this.exportSVG )
       },
 
-      //  drawingBoard: settings for export
-      exportSettings() {
-        this.onExporting = true
+      //  drawingBoard: initializes settings for the export rectangle
+      exportInit() {
+        let self = this
 
-        this.smallSize()
-        this.lc.setColor( 'primary', '#ccc' )
-        this.lc.setColor( 'secondary', 'transparent' )
-        this.lc.setTool( new LC.tools.Rectangle(this.lc) )
+        this.overlayUI()
+
+        //  binds for overlay layout
+        this.$overlay.bind('mousedown', function(e) {
+          self.onExporting = {
+            status: true,
+            initX: e.offsetX,
+            initY: e.offsetY,
+          }
+          self.selectAreaUI()
+        })
+        this.$overlay.bind('mousemove', function(e) {
+          if( self.onExporting && self.onExporting.status ) {
+            self.selectAreaRefreshPosition( e.offsetX, e.offsetY )
+          }
+        })
+        this.$overlay.bind('mouseup', function(e) {
+          if( self.onExporting && self.onExporting.status ) {
+            self.selectAreaSettings( e.offsetX, e.offsetY )
+            self.exportSVG( e )
+            self.$selectArea.css('display', 'none')
+
+            self.onExporting = null
+            self.disableOverlay()
+          }
+        })
       },
 
       //  drawingBoard: triggers when click on export
-      exportSVG( border ) {
+      exportSVG( e ) {
         const options = ['shapes', 'imageSize', 'colors', 'position', 'scale', 'backgroundShapes']
+        let settings = this.onExporting
+
         let _rect = {
-          x:      border.shape.x,
-          y:      border.shape.y,
-          width:  border.shape.width,
-          height: border.shape.height,
+          x:      settings.x, //border.shape.x,
+          y:      settings.y, //border.shape.y,
+          width:  settings.width, //border.shape.width,
+          height: settings.height, //border.shape.height,
         }
         let _margin = {
           top:    2,
@@ -335,29 +365,11 @@
         let img = LC.renderSnapshotToImage(this.lc.getSnapshot(options), {rect: _rect, margin: _margin})
         window.console.log( img.toDataURL() )
 
-        this.lc.shapes.pop()
-        setTimeout( () => {
-          try{
-            this.lc.undo()
-          } catch( error ) {}
-        }, 1 )
-        setTimeout( () => {
-          try{
-            this.lc.undo()
-          } catch( error ) {}
-        }, 2 )
-        setTimeout( () => {
-          try{
-            this.lc.redo()
-          } catch( error ) {}
-        }, 3 )
-        // this.lc.clearSnapshotBorder()
-
-        this.activatePreviousTool()
-        // this.resetToolSettings()
-        this.exportCallback()
-
-        this.onExporting = false
+        //  appending for seeing the canvas
+        let imgnode = document.createElement('img')
+        imgnode.src = img.toDataURL()
+        document.body.appendChild(imgnode)
+        //  appending for seeing the canvas
       },
 
       //  drawingBoard: undo last action
@@ -385,9 +397,12 @@
         this.lc.clear()
       },
 
-      //  drawingBoard: sets up the stroke color
+      //  drawingBoard: sets up the color
       color( type ) {
-        this.colorMap[ type ].toggleStatus()
+        //  used to make outsideClick trigger before toggling status
+        setTimeout( () => {
+          this.colorMap[ type ].toggleStatus( this )
+        }, 1 )
         this.setPickerColor( type )
       },
 
@@ -396,6 +411,65 @@
         this.primaryColor = this.lc.getColor('primary')
         this.secondaryColor = this.lc.getColor('secondary')
         this.strokeWidth = this.lc.tool.strokeWidth
+      },
+
+      //  overlay: init
+      initOverlay() {
+        this.$overlay = $( document.createElement('div') )
+        this.$selectArea = $( document.createElement('div') )
+
+        $( this.$overlay ).append( this.$selectArea )
+        $( document.body ).append( this.$overlay )
+      },
+
+      disableOverlay() {
+        this.$overlay.css('display', 'none')
+      },
+
+      //  overlay: UI
+      overlayUI() {
+        this.$overlay.css({
+          'position': 'absolute',
+          'top': this.$drawingBoard.offset().top+'px',
+          'left': this.$drawingBoard.offset().left+'px',
+          'height': this.$drawingBoard.height()+'px',
+          'width': this.$drawingBoard.width()+'px',
+          'backgroundColor': 'rgba(0,0,0,0)',
+          'display': 'block',
+        })
+      },
+
+      //  selectArea: UI
+      selectAreaUI() {
+        this.$selectArea.css({
+          'position': 'relative',
+          'border': '1px solid white',
+          'backgroundColor': 'rgba(204, 204, 204, 0.5)',
+          'display': 'block',
+        })
+      },
+
+      //  selectArea: settings to take snapshot
+      selectAreaSettings( x, y ) {
+        this.onExporting.x = this.onExporting.initX < x ? this.onExporting.initX : x
+        this.onExporting.y = this.onExporting.initY < y ? this.onExporting.initY : y
+      },
+
+      //  selectArea: refresh position while moving the mouse over the layout
+      selectAreaRefreshPosition( x, y ) {
+        let top = this.onExporting.initY <= y ? this.onExporting.initY : y
+        let left = this.onExporting.initX <= x ? this.onExporting.initX : x
+        let _height = ( this.onExporting.initY > y ? this.onExporting.initY : y ) - top
+        let _width = ( this.onExporting.initX > x ? this.onExporting.initX : x ) - left
+
+        this.$selectArea.css({
+          'top': top+'px',
+          'left': left+'px',
+          'height': _height+'px',
+          'width': _width+'px',
+        })
+        this.onExporting.height = _height
+        this.onExporting.width = _width
       },
 
       //  drawingBoard: small stroke
@@ -426,14 +500,14 @@
       dashLine() {
         this.lc.tool.isDashed = !this.lc.tool.isDashed
 
-        $( '[id*="dash"]' ).toggleClass( 'selected' )
+        this.$drawingArea.find( '[id*="dash"]' ).toggleClass( 'selected' )
       },
 
       //  drawingBoard: sets line as arrow
       arrowLine() {
         this.lc.tool.hasEndArrow = !this.lc.tool.hasEndArrow
 
-        $( '[id*="arrow"]' ).toggleClass( 'selected' )
+        this.$drawingArea.find( '[id*="arrow"]' ).toggleClass( 'selected' )
       },
 
       //  drawingBoard: shows settings for line tool
@@ -449,25 +523,26 @@
       //  drawingBoard: sets up the color of tool
       setColor( type ) {
         this.$nextTick( () => {
-          let self = this
-          let $sel = $('.vc-compact-color-item').filter( function() {
+          let $sel = this.colorMap[ type ].picker.find('.vc-compact-color-item').filter( function() {
             return $( this ).find( '.vc-compact-dot' ).css( 'display' ) == 'block'
           })
           let colorCode = this.getPickedColor( $sel.attr('aria-label') )
 
           this.colorMap[ type ].el.css( 'backgroundColor', colorCode )
           this.colorMap[ type ].el.data( 'backgroundColor', colorCode )
-          self.resetPickers()
+          this.lc.setColor( this.colorMap[ type ].role, colorCode )
+          this.activatePreviousTool()
+          this.resetPickers()
         })
       },
 
-      //  drawingBoard: 
+      //  drawingBoard: set color to the current selected picker
       setPickerColor( type ) {
         let color = this.getTool( type ).el.data('backgroundColor')
 
-        $('.vc-compact-dot').hide()
+        this.$drawingArea.find('.vc-compact-dot').hide()
         if( color ) {
-          $('.vc-compact-color-item').filter( function() {
+          this.$drawingArea.find('.vc-compact-color-item').filter( function() {
             return $( this ).attr( 'aria-label' ).indexOf( color ) != -1
           }).find( '.vc-compact-dot' ).show()
         }
@@ -478,12 +553,6 @@
         this.displayStrokePicker = false
         this.displayFillPicker = false
       },
-
-      // resetToolSettings() {
-      //   this.lc.setColor( 'primary', this.primaryColor )
-      //   this.lc.setColor( 'secondary', this.secondaryColor )
-      //   this.lc.tool.strokeWidth = this.strokeWidth
-      // },
 
       //  toolCollection: returns a stack with filtered tool names
       getToolNames( filter ) {
@@ -572,24 +641,32 @@
         activeColorID: null,
         activeColorType: null,
         colors,
-        tabsNo: 1,
-        exportCallback: null,
         isDotPointer: null,
         primaryColor: 'black',
         secondaryColor: 'white',
         strokeWidth: null,
-        onExporting: false,
+        onExporting: null,
 
         //  mappers
         colorMap: null,
 
         //  jQuery objects
+        $drawingArea: null, //  root object
         $colorPicker: null,
         $colorPickerItems: null,
         $drawingBoard: null,
-        $sizeTools: null
+        $sizeTools: null,
+        $overlay: null,
+        $selectArea: null,
       }
     }
 
   }
 </script>
+
+<style scoped>
+  @import './css/literallycanvas-core.css'
+</style>
+<style scoped>
+  @import './css/drawingarea.css'
+</style>

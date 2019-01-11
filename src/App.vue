@@ -1,16 +1,16 @@
 <template>
   <div id="app">
-    <DrawingPage />
+    <DrawingArea />
   </div>
 </template>
 
 <script>
-import DrawingPage from './components/DrawingPage.vue'
+import DrawingArea from './components/DrawingArea.vue'
 
 export default {
   name: 'app',
   components: {
-    DrawingPage
+    DrawingArea
   }
 }
 </script>
