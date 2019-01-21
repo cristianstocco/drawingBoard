@@ -90,7 +90,7 @@
     mounted () {
       this.$drawingArea       = $(this.$el)
       let self                = this
-      let drawingBoardHeight  = $(window).height() - $('.controls').height() - $('.tabs').height()
+      let drawingBoardHeight  = $(window).height() - $('.controls').height()
       let imageSize           = { width: null, height: null }
       this.$sizeTools         = this.$drawingArea.find('a[id*="Size"]')
       this.$drawingBoard      = this.$drawingArea.find('.literally.core')

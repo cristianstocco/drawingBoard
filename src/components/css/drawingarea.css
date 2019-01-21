@@ -1,9 +1,8 @@
 .tools {
   border-bottom: 1px solid #222;
-  padding-bottom: 10px;
+  padding: 5px 0 10px 0;
 }
 .controls {
-  padding-top: 5px;
   background-color: #f0f0f0;
 }
 .spacer {
@@ -76,29 +75,6 @@
   z-index: 1;
   width: 245px !important;
 }
-.tabs {
-  border-bottom: 1px solid lightgray;
-  height: 22px;
-}
-.tabs [id*=tab] {
-  float: left;
-  height: inherit;
-  text-align: center;
-}
-.tabs .tabList {
-  float: left;
-}
-.tabs .tabList .active {
-  background-color: #aef;
-}
-.tabs #addTab {
-  float: left;
-  text-align: center;
-  width: 22px;
-  height: inherit;
-  border-left: 1px solid lightgray;
-}
-
 .pointerDefault {
   cursor: auto;
 }
