@@ -58,7 +58,7 @@
 
 <script>
   // === LIBRARIES
-  import LC             from './js/literallycanvas-core.js'
+  import LC             from './js/literallycanvas-core.min.js'
   import Event          from './js/event.js'
   import Tool           from './menu/Tool.vue'
   import BorderedTool   from './menu/BorderedTool.vue'
