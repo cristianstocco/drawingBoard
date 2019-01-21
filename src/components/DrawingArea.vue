@@ -364,12 +364,6 @@
 
         let img = LC.renderSnapshotToImage(this.lc.getSnapshot(options), {rect: _rect, margin: _margin})
         window.console.log( img.toDataURL() )
-
-        //  appending for seeing the canvas
-        let imgnode = document.createElement('img')
-        imgnode.src = img.toDataURL()
-        document.body.appendChild(imgnode)
-        //  appending for seeing the canvas
       },
 
       //  drawingBoard: undo last action
@@ -422,11 +416,12 @@
         $( document.body ).append( this.$overlay )
       },
 
+      //  overlay: disable
       disableOverlay() {
         this.$overlay.css('display', 'none')
       },
 
-      //  overlay: UI
+      //  overlay: UI settings
       overlayUI() {
         this.$overlay.css({
           'position': 'absolute',
@@ -439,7 +434,7 @@
         })
       },
 
-      //  selectArea: UI
+      //  selectArea: UI settings
       selectAreaUI() {
         this.$selectArea.css({
           'position': 'relative',
